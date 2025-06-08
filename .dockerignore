@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pkl
+.ipynb_checkpoints
+.vscode/
+.env
+data/raw_pcap/
+data/processed/
+models/

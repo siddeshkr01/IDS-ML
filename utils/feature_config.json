@@ -1,0 +1,14 @@
+{
+  "features": [
+    "duration",
+    "protocol_type",
+    "service",
+    "src_bytes",
+    "dst_bytes",
+    "flag",
+    "land",
+    "wrong_fragment",
+    "urgent"
+  ],
+  "label": "label"
+}
