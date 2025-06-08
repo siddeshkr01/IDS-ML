@@ -1,20 +1,26 @@
-# Byte-compiled / optimized / DLL files
+# Python bytecode
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
-
-# Python virtual environment
+# Virtual environments
 venv/
+ENV/
 env/
 
-# Models and data files
-models/
-data/
+# Model artifacts
+*.pkl
 
-# VSCode settings folder
+# Packet capture files
+*.pcap
+
+# Output from CICFlowMeter
+*.csv
+data/extracted_csv/output_flows.csv
+
+# Notebooks checkpoints
+*.ipynb_checkpoints
+
+# VS Code project settings (optional)
 .vscode/
 
 # OS files
