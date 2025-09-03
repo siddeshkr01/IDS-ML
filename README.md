@@ -1,95 +1,168 @@
-# Intrusion Detection System (IDS) Using AI/ML
+# Intrusion Detection System (IDS) using Machine Learning on Flow-based Features
 
-This project implements a Machine Learning-based Intrusion Detection System (IDS) that detects malicious network traffic using ensemble techniques. It captures network traffic (via Wireshark), extracts features, preprocesses them, trains models, and offers real-time predictions using a Streamlit interface.
+**Project Title:**  
+Real-Time Network Intrusion Detection System using Flow-based Machine Learning
 
-## 📁 Project Structure
+---
+
+## 📄 Project Description
+
+This project implements a real-time Intrusion Detection System (IDS) using flow-based feature extraction from network traffic. The system extracts flow-level features directly from captured packet data, trains a machine learning model using the TON_IoT dataset, and performs live intrusion detection using PyShark in real-time.
+
+The project simulates a professional IDS pipeline following CICFlowMeter-style feature extraction using 5-tuple based flows.
+
+---
+
+## 📂 Project Structure
+
 ```
 IDS/
-├── data/                 # Network traffic data files
-│   ├── raw_pcap/         # .pcap files from Wireshark
-│   ├── extracted_csv/    # CSV files from pcap
-│   └── processed/        # Cleaned/preprocessed datasets
-├── models/               # Trained model files (.pkl)
-├── notebooks/            # Jupyter notebooks for exploration
-├── src/                  # Python scripts for ML pipeline
-├── utils/                # Helper files and feature config
-├── tests/                # Unit tests
-├── app/                  # Streamlit app
-├── requirements.txt      # Dependencies
-├── Dockerfile            # Docker container setup
-├── .dockerignore         # Docker exclusions
-├── .gitignore            # Git exclusions
-└── README.md             # This file
+│
+├── data/
+│   ├── raw_pcap/              # Reduced PCAP files (training dataset)
+│   ├── TON_IoT/               # Extracted flow-level Train.csv
+│   ├── processed/             # Reduced feature dataset (reduced_train.csv)
+│   └── extracted_csv/         # Live captured flows (output_flows.csv)
+│
+├── models/                    # Trained ML model & encoders
+│
+├── src/                       # All project source code
+│
+├── master_pipeline.py         # One-click master automation file
+│
+├── README.md                  # This file
+├── requirements.txt           # Python dependencies
+└── CNS_Synopsis_2025ids.pdf   # Project report
 ```
 
-## 🚀 Getting Started
+---
 
-### 1. Install Requirements
+## 📊 Dataset Used
+
+- **Dataset:** TON_IoT Network Dataset (2020)
+- **Source:** [CIC-TON-IoT Dataset](https://research.unsw.edu.au/projects/toniot-datasets)
+- The dataset includes normal and multiple attack types such as:
+  - DoS, DDoS, Password attacks, MITM, Scanning, Injection, XSS, Ransomware, etc.
+
+- **Note:**  
+  For this project, only selected PCAP files were extracted and reduced to create a lightweight, demo-ready dataset.
+
+---
+
+## 🚀 Pipeline Stages
+
+| Stage | Description |
+|-------|-------------|
+| 1️⃣ Flow Extraction | Extracts flows using PyShark with bidirectional bytes and dynamic TCP flags |
+| 2️⃣ Feature Reduction | Keeps only the selected features for training |
+| 3️⃣ Model Training | Trains Random Forest model |
+| 4️⃣ Live IDS | Captures 10 seconds of live traffic and predicts |
+
+---
+
+## ⚙️ Dependencies
+
+Install all dependencies inside your virtual environment:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Preprocess Data and Train Model
-```bash
-python src/train_models.py
-```
+Main libraries:
+- pandas
+- scikit-learn
+- pyshark
+- joblib
+- tshark (must be installed on system, comes with Wireshark)
 
-### 3. Evaluate Trained Model
-```bash
-python src/evaluate_models.py
-```
+👉 **Tshark Installation:**  
+Download and install Wireshark:  
+https://www.wireshark.org/download.html
 
-### 4. Make Predictions on New Data
-```bash
-python src/predict.py
-```
-
-### 5. Run the Streamlit Web App
-```bash
-streamlit run app/streamlit_app.py
-```
-
-Upload a CSV file with features to see predictions and intrusion alerts.
+✅ Ensure `tshark` is accessible from system PATH.
 
 ---
 
-## 🧪 Run Unit Tests (Optional)
+## 🚀 Running The Full Pipeline
+
+### 1️⃣ Activate virtual environment
+
 ```bash
-pip install pytest
-pytest tests/
+cd IDS
+venv\Scripts\activate   # for Windows
+
+# OR
+
+source venv/bin/activate  # for Linux/Mac
 ```
 
----
+### 2️⃣ Run complete pipeline:
 
-## 🐳 Docker Usage (Optional)
-### 1. Build Docker image
 ```bash
-docker build -t ids-app .
+python master_pipeline.py
 ```
 
-### 2. Run Docker container
+✅ This will automatically:
+
+- Extract flows  
+- Reduce dataset  
+- Train model  
+- Start live real-time intrusion detection
+
+### 3️⃣ During live detection:
+
+- The system will capture 10 seconds of live network traffic.
+- Extract features.
+- Perform ML prediction and display output labels in real-time.
+
+---
+
+## 🎯 Flow Features Used
+
+- protocol_type
+- src_ip
+- dst_ip
+- src_port
+- dst_port
+- flag (extracted dynamically from TCP flags)
+- src_bytes
+- dst_bytes
+- duration
+- count
+
+---
+
+## 📡 Real-Time Capture Interface
+
+By default, the interface is set to `Wi-Fi` (Windows):
+
 ```bash
-docker run -p 8501:8501 ids-app
+interface='Wi-Fi'
 ```
 
-Then open [http://localhost:8501](http://localhost:8501) to view the app.
+Change this in `real_time_detector.py` if using different network interface.
 
 ---
 
-## 🔍 Dataset Format
-Example expected CSV columns:
-```
-duration,protocol_type,service,src_bytes,dst_bytes,flag,land,wrong_fragment,urgent,label
-```
-Where `label` is `normal` or `attack`.
+## ✅ Project Status
+
+- ✅ Fully functional flow-based real-time IDS
+- ✅ Live prediction using trained ML model
+- ✅ End-to-end automation using master pipeline
+- ✅ Clean code structure for submission
 
 ---
 
-## 👥 Authors
-- **ML Development**: Your Name
-- **Wireshark & Packet Capture**: Your Friend's Name
+## 🔬 Authors
+
+- SIDDESH K R
+- SUBRAMANYA G M
 
 ---
 
-## 📜 License
-This project is for educational use only under the terms of your institution's academic policy.
+## 🔖 Acknowledgement
+
+- TON_IoT Dataset - UNSW Canberra
+- CICFlowMeter concepts inspired the flow feature extraction methodology.
+
+---

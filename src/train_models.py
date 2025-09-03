@@ -1,59 +1,101 @@
 import pandas as pd
 import joblib
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import VotingClassifier
+import os
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
-from lightgbm import LGBMClassifier
-from sklearn.preprocessing import LabelEncoder
-from src.preprocess import preprocess_pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+import numpy as np
 
-# Load full NSL-KDD dataset
-col_names = [
-    'duration', 'protocol_type', 'service', 'flag', 'src_bytes', 'dst_bytes',
-    'land', 'wrong_fragment', 'urgent', 'hot', 'num_failed_logins', 'logged_in',
-    'num_compromised', 'root_shell', 'su_attempted', 'num_root',
-    'num_file_creations', 'num_shells', 'num_access_files', 'num_outbound_cmds',
-    'is_host_login', 'is_guest_login', 'count', 'srv_count', 'serror_rate',
-    'srv_serror_rate', 'rerror_rate', 'srv_rerror_rate', 'same_srv_rate',
-    'diff_srv_rate', 'srv_diff_host_rate', 'dst_host_count',
-    'dst_host_srv_count', 'dst_host_same_srv_rate', 'dst_host_diff_srv_rate',
-    'dst_host_same_src_port_rate', 'dst_host_srv_diff_host_rate',
-    'dst_host_serror_rate', 'dst_host_srv_serror_rate', 'dst_host_rerror_rate',
-    'dst_host_srv_rerror_rate', 'label', 'difficulty'
+INPUT_PATH = "data/processed/reduced_train.csv"
+MODEL_DIR = "models"
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+# Full feature list
+features = [
+    'protocol_type',
+    'src_ip',
+    'dst_ip',
+    'src_port',
+    'dst_port',
+    'flag',
+    'src_bytes',
+    'dst_bytes',
+    'duration',
+    'count'
 ]
-train_df = pd.read_csv("https://raw.githubusercontent.com/defcom17/NSL_KDD/master/KDDTrain+.txt", names=col_names)
-test_df = pd.read_csv("https://raw.githubusercontent.com/defcom17/NSL_KDD/master/KDDTest+.txt", names=col_names)
 
-full_df = pd.concat([train_df, test_df], ignore_index=True)
-full_df.drop(columns=['difficulty'], inplace=True, errors='ignore')
+# Define categorical and numerical columns
+categorical = ['protocol_type', 'src_ip', 'dst_ip', 'src_port', 'dst_port', 'flag']
+numerical = ['src_bytes', 'dst_bytes', 'duration', 'count']
 
-categorical_cols = ['protocol_type', 'service', 'flag']
-X_scaled, y, scaler, le_dict = preprocess_pipeline(full_df, categorical_cols)
+# Read dataset
+df = pd.read_csv(INPUT_PATH)
 
-# Encode label
+# Fill missing categorical values as 'unknown'
+for col in categorical:
+    df[col] = df[col].fillna('unknown')
+
+# Prepare LabelEncoders for categorical features
+label_encoders = {}
+for col in categorical:
+    le = LabelEncoder()
+    le.fit(list(df[col].unique()) + ['unknown'])
+    df[col] = le.transform(df[col])
+    label_encoders[col] = le
+
+# Scale numerical features
+scaler = StandardScaler()
+df[numerical] = scaler.fit_transform(df[numerical])
+
+# Encode target labels
 label_encoder = LabelEncoder()
-y_encoded = label_encoder.fit_transform(y)
+df['label'] = df['label'].fillna('unknown')
+label_encoder.fit(list(df['label'].unique()) + ['unknown'])
+df['label'] = label_encoder.transform(df['label'])
 
-# Split to train/test ensuring all labels are in training
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y_encoded, test_size=0.2, stratify=y_encoded, random_state=42
+# Train/Test split
+X = df[features]
+y = df['label']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+rf_model = RandomForestClassifier(n_estimators=500, random_state=42)
+gb_model = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, random_state=42)
+et_model = ExtraTreesClassifier(n_estimators=100, random_state=42)
+lr_model = LogisticRegression(max_iter=3000, solver='lbfgs', random_state=42)
+mlp_model = MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=500, random_state=42)
+
+#Create ensemble model using hard voting
+ensemble_model = VotingClassifier(
+    estimators=[
+        ('rf', rf_model),
+        ('gb', gb_model),
+        ('et', et_model),
+        ('lr', lr_model),
+        ('mlp', mlp_model)
+    ],
+    voting='hard'
 )
 
-# Train ensemble
-model = VotingClassifier(estimators=[
-    ('lr', LogisticRegression(max_iter=500)),
-    ('rf', RandomForestClassifier(n_estimators=100)),
-    ('mlp', MLPClassifier(max_iter=300)),
-    ('lgbm', LGBMClassifier())
-], voting='hard')
 
-model.fit(X_train, y_train)
+ensemble_model.fit(X_train, y_train)
 
-# Save everything
-joblib.dump(model, 'models/final_ids_model.pkl')
-joblib.dump(scaler, 'models/scaler.pkl')
-joblib.dump(le_dict, 'models/label_encoders.pkl')
-joblib.dump(label_encoder, 'models/label_encoder.pkl')
-print("✅ Training complete and models saved.")
+# Evaluate model
+y_pred = ensemble_model.predict(X_test)
+
+labels_present = np.unique(y_test)
+target_names_present = label_encoder.inverse_transform(labels_present)
+
+print("\nClassification Report for Strong Ensemble Model:\n")
+print(classification_report(y_test, y_pred, labels=labels_present, target_names=target_names_present))
+
+# Save final ensemble model + encoders
+joblib.dump(ensemble_model, os.path.join(MODEL_DIR, 'final_ids_model.pkl'))
+joblib.dump(scaler, os.path.join(MODEL_DIR, 'scaler.pkl'))
+joblib.dump(label_encoders, os.path.join(MODEL_DIR, 'label_encoders.pkl'))
+joblib.dump(label_encoder, os.path.join(MODEL_DIR, 'label_encoder.pkl'))
+
+print("\nEnsemble model and encoders saved successfully.")
